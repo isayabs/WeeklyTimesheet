@@ -1,0 +1,486 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Timesheet</title>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: #f5f5f4;
+    color: #1a1a18;
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 24px 32px;
+  }
+
+  .container {
+    max-width: 1100px;
+    margin: 0 auto;
+    background: #fff;
+    border-radius: 12px;
+    border: 1px solid #e0dfd8;
+    padding: 24px 28px 28px;
+  }
+
+  h1 {
+    font-size: 20px;
+    font-weight: 600;
+    color: #1a1a18;
+    margin-bottom: 3px;
+  }
+
+  .subtitle {
+    font-size: 12px;
+    color: #888780;
+    margin-bottom: 18px;
+  }
+
+  /* Week nav */
+  .week-nav {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 16px;
+  }
+
+  .week-nav button {
+    background: #fff;
+    border: 1px solid #d3d1c7;
+    border-radius: 7px;
+    padding: 5px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    color: #1a1a18;
+    transition: background 0.1s;
+  }
+
+  .week-nav button:hover { background: #f1efe8; }
+  .week-nav button:active { transform: scale(0.98); }
+
+  .week-label {
+    font-size: 14px;
+    font-weight: 600;
+    color: #1a1a18;
+    flex: 1;
+    text-align: center;
+  }
+
+  /* Table */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+  }
+
+  thead th {
+    padding: 7px 10px;
+    text-align: left;
+    color: #888780;
+    font-weight: 500;
+    font-size: 12px;
+    border-bottom: 1px solid #e8e7e0;
+    white-space: nowrap;
+  }
+
+  thead th.center { text-align: center; }
+
+  tbody td {
+    padding: 6px 10px;
+    border-bottom: 1px solid #f0efe8;
+    vertical-align: middle;
+  }
+
+  tbody tr:last-child td { border-bottom: none; }
+
+  tbody tr.today-row td { background: #f7f6f2; }
+  tbody tr.hol-row td { background: #fef8ee; }
+  tbody tr:hover td { background: #fafaf7; }
+  tbody tr.today-row:hover td { background: #f3f2ee; }
+  tbody tr.hol-row:hover td { background: #fdf3e3; }
+
+  .day-name {
+    font-weight: 600;
+    color: #1a1a18;
+    width: 76px;
+  }
+
+  .day-date {
+    color: #888780;
+    font-size: 12px;
+    width: 62px;
+  }
+
+  input[type="time"] {
+    border: 1px solid #d3d1c7;
+    border-radius: 6px;
+    padding: 4px 7px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #1a1a18;
+    width: 100px;
+    transition: border-color 0.15s;
+  }
+
+  input[type="time"]:focus {
+    outline: none;
+    border-color: #7f77dd;
+    box-shadow: 0 0 0 2px #eeedfe;
+  }
+
+  input[type="number"].brk-input {
+    border: 1px solid #d3d1c7;
+    border-radius: 6px;
+    padding: 4px 6px;
+    font-size: 13px;
+    font-family: inherit;
+    background: #fff;
+    color: #1a1a18;
+    width: 56px;
+    transition: border-color 0.15s;
+  }
+
+  input[type="number"].brk-input:focus {
+    outline: none;
+    border-color: #7f77dd;
+    box-shadow: 0 0 0 2px #eeedfe;
+  }
+
+  .break-wrap { display: flex; align-items: center; gap: 5px; }
+
+  .badge {
+    display: inline-block;
+    padding: 2px 7px;
+    border-radius: 20px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+  }
+  .b-15 { background: #eaf3de; color: #3b6d11; }
+  .b-30 { background: #e6f1fb; color: #185fa5; }
+  .b-45 { background: #faeeda; color: #854f0b; }
+
+  .auto-lbl { font-size: 11px; color: #b4b2a9; }
+
+  .net-val { font-weight: 600; color: #1a1a18; }
+  .hol-pay { font-size: 11px; color: #ba7517; font-weight: 500; margin-top: 1px; }
+
+  .gross-val { color: #888780; }
+
+  /* Holiday checkbox */
+  .hol-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; }
+
+  .hol-wrap input[type="checkbox"] {
+    width: 16px;
+    height: 16px;
+    cursor: pointer;
+    accent-color: #ba7517;
+  }
+
+  .hol-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: #888780;
+    min-width: 30px;
+  }
+
+  .hol-label.active { color: #ba7517; }
+
+  /* Summary cards */
+  .summary {
+    display: grid;
+    grid-template-columns: repeat(5, 1fr);
+    gap: 10px;
+    margin-top: 20px;
+  }
+
+  @media (max-width: 900px) {
+    .summary { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  .metric {
+    background: #f7f6f2;
+    border-radius: 8px;
+    padding: 12px 14px;
+  }
+
+  .metric-label {
+    font-size: 11px;
+    color: #888780;
+    margin-bottom: 4px;
+    font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+  }
+
+  .metric-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #1a1a18;
+    line-height: 1.1;
+  }
+
+  .metric-value.hol-active { color: #ba7517; }
+
+  .metric-sub {
+    font-size: 11px;
+    color: #b4b2a9;
+    margin-top: 3px;
+  }
+
+  /* Legend */
+  .legend {
+    display: flex;
+    gap: 14px;
+    flex-wrap: wrap;
+    align-items: center;
+    margin-top: 14px;
+    padding-top: 14px;
+    border-top: 1px solid #f0efe8;
+    font-size: 12px;
+    color: #888780;
+  }
+
+  .legend-item { display: flex; align-items: center; gap: 5px; }
+  .legend-hol { color: #ba7517; font-weight: 600; }
+
+  /* Today dot */
+  .today-dot {
+    display: inline-block;
+    width: 6px;
+    height: 6px;
+    background: #7f77dd;
+    border-radius: 50%;
+    margin-left: 4px;
+    vertical-align: middle;
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+  <h1>&#128197; Weekly Timesheet</h1>
+  <p class="subtitle">Breaks are unpaid and deducted from total hours worked. Tick the holiday box to apply ×1.5 pay on that day.</p>
+
+  <div class="week-nav">
+    <button onclick="shiftWeek(-1)">&#8249; Prev</button>
+    <button onclick="shiftWeek(1)">Next &#8250;</button>
+    <span class="week-label" id="weekLabel"></span>
+    <button onclick="shiftWeek(0)">Today</button>
+  </div>
+
+  <table>
+    <thead>
+      <tr>
+        <th style="width:80px">Day</th>
+        <th style="width:68px">Date</th>
+        <th style="width:110px">Start</th>
+        <th style="width:110px">End</th>
+        <th style="width:140px">Break (min)</th>
+        <th style="width:90px">Gross</th>
+        <th style="width:110px">Net</th>
+        <th style="width:70px" class="center">Holiday</th>
+      </tr>
+    </thead>
+    <tbody id="tbody"></tbody>
+  </table>
+
+  <div class="summary" id="summary"></div>
+
+  <div class="legend">
+    <div class="legend-item"><span class="badge b-15">15m</span> less than 5 hrs</div>
+    <div class="legend-item"><span class="badge b-30">30m</span> 5.5 hrs and above</div>
+    <div class="legend-item"><span class="badge b-45">45m</span> over 8 hrs</div>
+    <div class="legend-item" style="color:#b4b2a9">| Break auto-fills; you can override it manually</div>
+    <div class="legend-item legend-hol">&#9744; Tick Holiday = ×1.5 pay</div>
+  </div>
+</div>
+
+<script>
+const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+let weekOffset = 0;
+let data = {};
+
+function getMonday(offset) {
+  const now = new Date();
+  const day = now.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const mon = new Date(now);
+  mon.setDate(now.getDate() + diff + offset * 7);
+  mon.setHours(0, 0, 0, 0);
+  return mon;
+}
+
+function fmtKey(d) {
+  return d.toLocaleDateString('en-CA');
+}
+
+function fmtDisp(d) {
+  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
+}
+
+function toMins(t) {
+  if (!t) return null;
+  const [h, m] = t.split(':').map(Number);
+  return h * 60 + m;
+}
+
+function minsToStr(mins) {
+  if (mins === null || mins < 0) return '—';
+  const h = Math.floor(mins / 60);
+  const m = mins % 60;
+  return h + 'h ' + String(m).padStart(2, '0') + 'm';
+}
+
+function autoBreak(gm) {
+  if (gm === null) return null;
+  const h = gm / 60;
+  if (h > 8) return 45;
+  if (h >= 5.5) return 30;
+  if (h > 0) return 15;
+  return 0;
+}
+
+function badgeCls(m) {
+  if (m >= 45) return 'b-45';
+  if (m >= 30) return 'b-30';
+  return 'b-15';
+}
+
+function g(ds, f) { return data[ds + '_' + f] !== undefined ? data[ds + '_' + f] : ''; }
+function sv(ds, f, v) { data[ds + '_' + f] = v; render(); }
+
+function render() {
+  const mon = getMonday(weekOffset);
+  const sun = new Date(mon);
+  sun.setDate(mon.getDate() + 6);
+  document.getElementById('weekLabel').textContent = fmtDisp(mon) + ' – ' + fmtDisp(sun);
+
+  const today = fmtKey(new Date());
+  const tbody = document.getElementById('tbody');
+  tbody.innerHTML = '';
+
+  let totGross = 0, totBreak = 0, totNet = 0, workedDays = 0;
+  let holPayableNet = 0, normalNet = 0, holDays = 0;
+
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(mon);
+    d.setDate(mon.getDate() + i);
+    const ds = fmtKey(d);
+    const isToday = ds === today;
+    const isHol = !!data[ds + '_hol'];
+
+    const start = g(ds, 'start');
+    const end = g(ds, 'end');
+    const brOver = g(ds, 'break');
+
+    const sm = toMins(start);
+    const em = toMins(end);
+    const gm = (sm !== null && em !== null && em > sm) ? em - sm : null;
+    const autoB = gm !== null ? autoBreak(gm) : null;
+    const bm = brOver !== '' ? parseInt(brOver) : autoB;
+    const nm = gm !== null ? Math.max(0, gm - (bm || 0)) : null;
+
+    if (gm !== null) {
+      totGross += gm;
+      totBreak += (bm || 0);
+      totNet += nm;
+      workedDays++;
+      if (isHol) { holPayableNet += nm * 1.5; holDays++; }
+      else { normalNet += nm; }
+    }
+
+    const bdg = bm !== null && bm > 0
+      ? `<span class="badge ${badgeCls(bm)}">${bm}</span>` : '';
+    const autoNote = brOver === '' && autoB !== null
+      ? `<span class="auto-lbl">auto</span>` : '';
+    const holPayDisp = nm !== null && isHol
+      ? `<div class="hol-pay">&#10006;1.5 = ${(nm * 1.5 / 60).toFixed(2)}h</div>` : '';
+
+    const tr = document.createElement('tr');
+    if (isToday) tr.classList.add('today-row');
+    if (isHol) tr.classList.add('hol-row');
+
+    tr.innerHTML = `
+      <td class="day-name">${DAYS[i]}${isToday ? '<span class="today-dot"></span>' : ''}</td>
+      <td class="day-date">${fmtDisp(d)}</td>
+      <td>
+        <input type="time" value="${start}"
+          onchange="sv('${ds}','start',this.value)">
+      </td>
+      <td>
+        <input type="time" value="${end}"
+          onchange="sv('${ds}','end',this.value)">
+      </td>
+      <td>
+        <div class="break-wrap">
+          ${bdg}
+          <input type="number" class="brk-input" min="0" max="120" step="5"
+            placeholder="—" value="${brOver}"
+            oninput="sv('${ds}','break',this.value)">
+          ${autoNote}
+        </div>
+      </td>
+      <td class="gross-val">${gm !== null ? minsToStr(gm) : '—'}</td>
+      <td>
+        <span class="net-val">${nm !== null ? minsToStr(nm) : '—'}</span>
+        ${holPayDisp}
+      </td>
+      <td>
+        <div class="hol-wrap">
+          <input type="checkbox" id="hol_${ds}" ${isHol ? 'checked' : ''}
+            onchange="sv('${ds}','hol',this.checked)">
+          <label class="hol-label ${isHol ? 'active' : ''}" for="hol_${ds}">
+            ${isHol ? '×1.5' : 'Hol'}
+          </label>
+        </div>
+      </td>
+    `;
+    tbody.appendChild(tr);
+  }
+
+  const payEquiv = (normalNet + holPayableNet) / 60;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="metric">
+      <div class="metric-label">Net hours</div>
+      <div class="metric-value">${(totNet / 60).toFixed(2)}</div>
+      <div class="metric-sub">hrs this week</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Gross hours</div>
+      <div class="metric-value">${(totGross / 60).toFixed(2)}</div>
+      <div class="metric-sub">before breaks</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Total breaks</div>
+      <div class="metric-value">${(totBreak / 60).toFixed(2)}</div>
+      <div class="metric-sub">hrs unpaid</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Pay-equiv hrs</div>
+      <div class="metric-value ${holDays > 0 ? 'hol-active' : ''}">${payEquiv.toFixed(2)}</div>
+      <div class="metric-sub">${holDays > 0 ? holDays + ' holiday day' + (holDays > 1 ? 's' : '') + ' ×1.5' : 'no holidays'}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">Days worked</div>
+      <div class="metric-value">${workedDays}</div>
+      <div class="metric-sub">avg ${workedDays > 0 ? (totNet / workedDays / 60).toFixed(2) : '—'} h/day</div>
+    </div>
+  `;
+}
+
+function shiftWeek(dir) {
+  if (dir === 0) weekOffset = 0;
+  else weekOffset += dir;
+  render();
+}
+
+render();
+</script>
+</body>
+</html>
