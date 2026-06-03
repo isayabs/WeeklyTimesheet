@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Weekly Timesheet</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -25,41 +26,88 @@
     padding: 24px 28px 28px;
   }
 
-  h1 {
+  .header-row {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    margin-bottom: 18px;
+    gap: 16px;
+  }
+
+  .header-left h1 {
     font-size: 20px;
     font-weight: 600;
     color: #1a1a18;
     margin-bottom: 3px;
   }
 
-  .subtitle {
+  .header-left .subtitle {
     font-size: 12px;
     color: #888780;
-    margin-bottom: 18px;
   }
 
-  /* Week nav */
+  .header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-shrink: 0;
+  }
+
+  .save-indicator {
+    font-size: 11px;
+    color: #b4b2a9;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+  }
+
+  .save-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #b4b2a9;
+    transition: background 0.3s;
+  }
+
+  .save-dot.saved { background: #639922; }
+
+  .btn {
+    background: #fff;
+    border: 1px solid #d3d1c7;
+    border-radius: 7px;
+    padding: 6px 14px;
+    font-size: 13px;
+    font-family: inherit;
+    cursor: pointer;
+    color: #1a1a18;
+    transition: background 0.1s;
+    white-space: nowrap;
+  }
+
+  .btn:hover { background: #f1efe8; }
+  .btn:active { transform: scale(0.98); }
+
+  .btn-pdf {
+    background: #1a1a18;
+    color: #fff;
+    border-color: #1a1a18;
+  }
+
+  .btn-pdf:hover { background: #333330; }
+
+  .btn-clear {
+    color: #e24b4a;
+    border-color: #f7c1c1;
+  }
+
+  .btn-clear:hover { background: #fcebeb; }
+
   .week-nav {
     display: flex;
     align-items: center;
     gap: 8px;
     margin-bottom: 16px;
   }
-
-  .week-nav button {
-    background: #fff;
-    border: 1px solid #d3d1c7;
-    border-radius: 7px;
-    padding: 5px 14px;
-    font-size: 13px;
-    font-family: inherit;
-    cursor: pointer;
-    color: #1a1a18;
-    transition: background 0.1s;
-  }
-
-  .week-nav button:hover { background: #f1efe8; }
-  .week-nav button:active { transform: scale(0.98); }
 
   .week-label {
     font-size: 14px;
@@ -69,7 +117,6 @@
     text-align: center;
   }
 
-  /* Table */
   table {
     width: 100%;
     border-collapse: collapse;
@@ -95,24 +142,14 @@
   }
 
   tbody tr:last-child td { border-bottom: none; }
-
   tbody tr.today-row td { background: #f7f6f2; }
   tbody tr.hol-row td { background: #fef8ee; }
   tbody tr:hover td { background: #fafaf7; }
   tbody tr.today-row:hover td { background: #f3f2ee; }
   tbody tr.hol-row:hover td { background: #fdf3e3; }
 
-  .day-name {
-    font-weight: 600;
-    color: #1a1a18;
-    width: 76px;
-  }
-
-  .day-date {
-    color: #888780;
-    font-size: 12px;
-    width: 62px;
-  }
+  .day-name { font-weight: 600; color: #1a1a18; }
+  .day-date { color: #888780; font-size: 12px; }
 
   input[type="time"] {
     border: 1px solid #d3d1c7;
@@ -165,13 +202,10 @@
   .b-45 { background: #faeeda; color: #854f0b; }
 
   .auto-lbl { font-size: 11px; color: #b4b2a9; }
-
   .net-val { font-weight: 600; color: #1a1a18; }
   .hol-pay { font-size: 11px; color: #ba7517; font-weight: 500; margin-top: 1px; }
-
   .gross-val { color: #888780; }
 
-  /* Holiday checkbox */
   .hol-wrap { display: flex; align-items: center; justify-content: center; gap: 6px; }
 
   .hol-wrap input[type="checkbox"] {
@@ -186,11 +220,11 @@
     font-weight: 600;
     color: #888780;
     min-width: 30px;
+    cursor: pointer;
   }
 
   .hol-label.active { color: #ba7517; }
 
-  /* Summary cards */
   .summary {
     display: grid;
     grid-template-columns: repeat(5, 1fr);
@@ -232,7 +266,6 @@
     margin-top: 3px;
   }
 
-  /* Legend */
   .legend {
     display: flex;
     gap: 14px;
@@ -248,7 +281,6 @@
   .legend-item { display: flex; align-items: center; gap: 5px; }
   .legend-hol { color: #ba7517; font-weight: 600; }
 
-  /* Today dot */
   .today-dot {
     display: inline-block;
     width: 6px;
@@ -258,25 +290,70 @@
     margin-left: 4px;
     vertical-align: middle;
   }
+
+  /* Toast notification */
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: #1a1a18;
+    color: #fff;
+    padding: 10px 18px;
+    border-radius: 8px;
+    font-size: 13px;
+    opacity: 0;
+    transform: translateY(8px);
+    transition: opacity 0.2s, transform 0.2s;
+    pointer-events: none;
+    z-index: 999;
+  }
+
+  .toast.show { opacity: 1; transform: translateY(0); }
+
+  /* PDF print styles */
+  @media print {
+    body { background: #fff; padding: 0; }
+    .container { border: none; border-radius: 0; padding: 16px; max-width: 100%; }
+    .no-print { display: none !important; }
+    input[type="time"], input[type="number"] {
+      border: none;
+      background: transparent;
+    }
+    tbody tr:hover td { background: inherit; }
+  }
 </style>
 </head>
 <body>
 
-<div class="container">
-  <h1>&#128197; Weekly Timesheet</h1>
-  <p class="subtitle">Breaks are unpaid and deducted from total hours worked. Tick the holiday box to apply ×1.5 pay on that day.</p>
-
-  <div class="week-nav">
-    <button onclick="shiftWeek(-1)">&#8249; Prev</button>
-    <button onclick="shiftWeek(1)">Next &#8250;</button>
-    <span class="week-label" id="weekLabel"></span>
-    <button onclick="shiftWeek(0)">Today</button>
+<div class="container" id="printArea">
+  <div class="header-row">
+    <div class="header-left">
+      <h1>&#128197; Weekly Timesheet</h1>
+      <p class="subtitle">Breaks are unpaid and deducted from total hours worked. Tick the holiday box to apply ×1.5 pay on that day.</p>
+    </div>
+    <div class="header-right no-print">
+      <div class="save-indicator">
+        <span class="save-dot" id="saveDot"></span>
+        <span id="saveLabel">not saved</span>
+      </div>
+      <button class="btn btn-clear" onclick="clearWeek()">Clear week</button>
+      <button class="btn btn-pdf" onclick="exportPDF()">&#8595; Download PDF</button>
+    </div>
   </div>
+
+  <div class="week-nav no-print">
+    <button class="btn" onclick="shiftWeek(-1)">&#8249; Prev</button>
+    <button class="btn" onclick="shiftWeek(1)">Next &#8250;</button>
+    <span class="week-label" id="weekLabel"></span>
+    <button class="btn" onclick="shiftWeek(0)">Today</button>
+  </div>
+
+  <div class="week-label-print" id="weekLabelPrint" style="display:none; font-size:15px; font-weight:600; margin-bottom:12px;"></div>
 
   <table>
     <thead>
       <tr>
-        <th style="width:80px">Day</th>
+        <th style="width:88px">Day</th>
         <th style="width:68px">Date</th>
         <th style="width:110px">Start</th>
         <th style="width:110px">End</th>
@@ -295,50 +372,83 @@
     <div class="legend-item"><span class="badge b-15">15m</span> less than 5 hrs</div>
     <div class="legend-item"><span class="badge b-30">30m</span> 5.5 hrs and above</div>
     <div class="legend-item"><span class="badge b-45">45m</span> over 8 hrs</div>
-    <div class="legend-item" style="color:#b4b2a9">| Break auto-fills; you can override it manually</div>
+    <div class="legend-item" style="color:#b4b2a9">| Break auto-fills; you can override manually</div>
     <div class="legend-item legend-hol">&#9744; Tick Holiday = ×1.5 pay</div>
   </div>
 </div>
 
+<div class="toast" id="toast"></div>
+
 <script>
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday'];
+const STORAGE_KEY = 'timesheet_data';
 let weekOffset = 0;
 let data = {};
+let saveTimer = null;
 
+/* ── localStorage ── */
+function loadFromStorage() {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) data = JSON.parse(raw);
+  } catch(e) { data = {}; }
+}
+
+function saveToStorage() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+    flashSaved();
+  } catch(e) {}
+}
+
+function flashSaved() {
+  const dot = document.getElementById('saveDot');
+  const lbl = document.getElementById('saveLabel');
+  dot.className = 'save-dot saved';
+  lbl.textContent = 'saved';
+  clearTimeout(saveTimer);
+  saveTimer = setTimeout(() => {
+    dot.className = 'save-dot';
+    lbl.textContent = 'auto-saved';
+  }, 2000);
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2800);
+}
+
+/* ── Date helpers ── */
 function getMonday(offset) {
   const now = new Date();
   const day = now.getDay();
   const diff = day === 0 ? -6 : 1 - day;
   const mon = new Date(now);
   mon.setDate(now.getDate() + diff + offset * 7);
-  mon.setHours(0, 0, 0, 0);
+  mon.setHours(0,0,0,0);
   return mon;
 }
 
-function fmtKey(d) {
-  return d.toLocaleDateString('en-CA');
-}
-
-function fmtDisp(d) {
-  return d.toLocaleDateString('en-GB', { day: '2-digit', month: 'short' });
-}
+function fmtKey(d) { return d.toLocaleDateString('en-CA'); }
+function fmtDisp(d) { return d.toLocaleDateString('en-GB', { day:'2-digit', month:'short' }); }
 
 function toMins(t) {
   if (!t) return null;
-  const [h, m] = t.split(':').map(Number);
-  return h * 60 + m;
+  const [h,m] = t.split(':').map(Number);
+  return h*60+m;
 }
 
 function minsToStr(mins) {
   if (mins === null || mins < 0) return '—';
-  const h = Math.floor(mins / 60);
-  const m = mins % 60;
-  return h + 'h ' + String(m).padStart(2, '0') + 'm';
+  const h = Math.floor(mins/60), m = mins%60;
+  return h + 'h ' + String(m).padStart(2,'0') + 'm';
 }
 
 function autoBreak(gm) {
   if (gm === null) return null;
-  const h = gm / 60;
+  const h = gm/60;
   if (h > 8) return 45;
   if (h >= 5.5) return 30;
   if (h > 0) return 15;
@@ -351,55 +461,70 @@ function badgeCls(m) {
   return 'b-15';
 }
 
-function g(ds, f) { return data[ds + '_' + f] !== undefined ? data[ds + '_' + f] : ''; }
-function sv(ds, f, v) { data[ds + '_' + f] = v; render(); }
+/* ── Data access ── */
+function g(ds, f) {
+  const v = data[ds+'_'+f];
+  return v !== undefined ? v : '';
+}
 
+function sv(ds, f, v) {
+  data[ds+'_'+f] = v;
+  saveToStorage();
+  render();
+}
+
+function clearWeek() {
+  const mon = getMonday(weekOffset);
+  let cleared = false;
+  for (let i=0; i<7; i++) {
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
+    const ds = fmtKey(d);
+    ['start','end','break','hol'].forEach(f => {
+      if (data[ds+'_'+f] !== undefined) { delete data[ds+'_'+f]; cleared = true; }
+    });
+  }
+  if (cleared) { saveToStorage(); showToast('Week cleared'); }
+  render();
+}
+
+/* ── Render ── */
 function render() {
   const mon = getMonday(weekOffset);
-  const sun = new Date(mon);
-  sun.setDate(mon.getDate() + 6);
-  document.getElementById('weekLabel').textContent = fmtDisp(mon) + ' – ' + fmtDisp(sun);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const label = fmtDisp(mon) + ' – ' + fmtDisp(sun);
+  document.getElementById('weekLabel').textContent = label;
+  document.getElementById('weekLabelPrint').textContent = label;
 
   const today = fmtKey(new Date());
   const tbody = document.getElementById('tbody');
   tbody.innerHTML = '';
 
-  let totGross = 0, totBreak = 0, totNet = 0, workedDays = 0;
-  let holPayableNet = 0, normalNet = 0, holDays = 0;
+  let totGross=0, totBreak=0, totNet=0, workedDays=0;
+  let holPayableNet=0, normalNet=0, holDays=0;
 
-  for (let i = 0; i < 7; i++) {
-    const d = new Date(mon);
-    d.setDate(mon.getDate() + i);
+  for (let i=0; i<7; i++) {
+    const d = new Date(mon); d.setDate(mon.getDate()+i);
     const ds = fmtKey(d);
     const isToday = ds === today;
-    const isHol = !!data[ds + '_hol'];
+    const isHol = !!data[ds+'_hol'];
 
-    const start = g(ds, 'start');
-    const end = g(ds, 'end');
-    const brOver = g(ds, 'break');
+    const start = g(ds,'start'), end = g(ds,'end'), brOver = g(ds,'break');
+    const sm = toMins(start), em = toMins(end);
+    const gm = (sm!==null && em!==null && em>sm) ? em-sm : null;
+    const autoB = gm!==null ? autoBreak(gm) : null;
+    const bm = brOver!=='' ? parseInt(brOver) : autoB;
+    const nm = gm!==null ? Math.max(0, gm-(bm||0)) : null;
 
-    const sm = toMins(start);
-    const em = toMins(end);
-    const gm = (sm !== null && em !== null && em > sm) ? em - sm : null;
-    const autoB = gm !== null ? autoBreak(gm) : null;
-    const bm = brOver !== '' ? parseInt(brOver) : autoB;
-    const nm = gm !== null ? Math.max(0, gm - (bm || 0)) : null;
-
-    if (gm !== null) {
-      totGross += gm;
-      totBreak += (bm || 0);
-      totNet += nm;
-      workedDays++;
-      if (isHol) { holPayableNet += nm * 1.5; holDays++; }
-      else { normalNet += nm; }
+    if (gm!==null) {
+      totGross+=gm; totBreak+=(bm||0); totNet+=nm; workedDays++;
+      if (isHol) { holPayableNet+=nm*1.5; holDays++; }
+      else { normalNet+=nm; }
     }
 
-    const bdg = bm !== null && bm > 0
-      ? `<span class="badge ${badgeCls(bm)}">${bm}</span>` : '';
-    const autoNote = brOver === '' && autoB !== null
-      ? `<span class="auto-lbl">auto</span>` : '';
-    const holPayDisp = nm !== null && isHol
-      ? `<div class="hol-pay">&#10006;1.5 = ${(nm * 1.5 / 60).toFixed(2)}h</div>` : '';
+    const bdg = bm!==null && bm>0 ? `<span class="badge ${badgeCls(bm)}">${bm}</span>` : '';
+    const autoNote = brOver==='' && autoB!==null ? `<span class="auto-lbl">auto</span>` : '';
+    const holPayDisp = nm!==null && isHol
+      ? `<div class="hol-pay">×1.5 = ${(nm*1.5/60).toFixed(2)}h</div>` : '';
 
     const tr = document.createElement('tr');
     if (isToday) tr.classList.add('today-row');
@@ -408,33 +533,26 @@ function render() {
     tr.innerHTML = `
       <td class="day-name">${DAYS[i]}${isToday ? '<span class="today-dot"></span>' : ''}</td>
       <td class="day-date">${fmtDisp(d)}</td>
-      <td>
-        <input type="time" value="${start}"
-          onchange="sv('${ds}','start',this.value)">
-      </td>
-      <td>
-        <input type="time" value="${end}"
-          onchange="sv('${ds}','end',this.value)">
-      </td>
+      <td><input type="time" value="${start}" onchange="sv('${ds}','start',this.value)"></td>
+      <td><input type="time" value="${end}" onchange="sv('${ds}','end',this.value)"></td>
       <td>
         <div class="break-wrap">
           ${bdg}
           <input type="number" class="brk-input" min="0" max="120" step="5"
-            placeholder="—" value="${brOver}"
-            oninput="sv('${ds}','break',this.value)">
+            placeholder="—" value="${brOver}" oninput="sv('${ds}','break',this.value)">
           ${autoNote}
         </div>
       </td>
-      <td class="gross-val">${gm !== null ? minsToStr(gm) : '—'}</td>
+      <td class="gross-val">${gm!==null ? minsToStr(gm) : '—'}</td>
       <td>
-        <span class="net-val">${nm !== null ? minsToStr(nm) : '—'}</span>
+        <span class="net-val">${nm!==null ? minsToStr(nm) : '—'}</span>
         ${holPayDisp}
       </td>
       <td>
         <div class="hol-wrap">
-          <input type="checkbox" id="hol_${ds}" ${isHol ? 'checked' : ''}
+          <input type="checkbox" id="hol_${ds}" ${isHol?'checked':''}
             onchange="sv('${ds}','hol',this.checked)">
-          <label class="hol-label ${isHol ? 'active' : ''}" for="hol_${ds}">
+          <label class="hol-label ${isHol?'active':''}" for="hol_${ds}">
             ${isHol ? '×1.5' : 'Hol'}
           </label>
         </div>
@@ -448,39 +566,79 @@ function render() {
   document.getElementById('summary').innerHTML = `
     <div class="metric">
       <div class="metric-label">Net hours</div>
-      <div class="metric-value">${(totNet / 60).toFixed(2)}</div>
+      <div class="metric-value">${(totNet/60).toFixed(2)}</div>
       <div class="metric-sub">hrs this week</div>
     </div>
     <div class="metric">
       <div class="metric-label">Gross hours</div>
-      <div class="metric-value">${(totGross / 60).toFixed(2)}</div>
+      <div class="metric-value">${(totGross/60).toFixed(2)}</div>
       <div class="metric-sub">before breaks</div>
     </div>
     <div class="metric">
       <div class="metric-label">Total breaks</div>
-      <div class="metric-value">${(totBreak / 60).toFixed(2)}</div>
+      <div class="metric-value">${(totBreak/60).toFixed(2)}</div>
       <div class="metric-sub">hrs unpaid</div>
     </div>
     <div class="metric">
       <div class="metric-label">Pay-equiv hrs</div>
-      <div class="metric-value ${holDays > 0 ? 'hol-active' : ''}">${payEquiv.toFixed(2)}</div>
-      <div class="metric-sub">${holDays > 0 ? holDays + ' holiday day' + (holDays > 1 ? 's' : '') + ' ×1.5' : 'no holidays'}</div>
+      <div class="metric-value ${holDays>0?'hol-active':''}">${payEquiv.toFixed(2)}</div>
+      <div class="metric-sub">${holDays>0 ? holDays+' holiday day'+(holDays>1?'s':'')+' ×1.5' : 'no holidays'}</div>
     </div>
     <div class="metric">
       <div class="metric-label">Days worked</div>
       <div class="metric-value">${workedDays}</div>
-      <div class="metric-sub">avg ${workedDays > 0 ? (totNet / workedDays / 60).toFixed(2) : '—'} h/day</div>
+      <div class="metric-sub">avg ${workedDays>0?(totNet/workedDays/60).toFixed(2):'—'} h/day</div>
     </div>
   `;
 }
 
+/* ── PDF export ── */
+function exportPDF() {
+  const mon = getMonday(weekOffset);
+  const sun = new Date(mon); sun.setDate(mon.getDate()+6);
+  const filename = 'timesheet_' + fmtKey(mon) + '_to_' + fmtKey(sun) + '.pdf';
+
+  const nav = document.querySelector('.week-nav');
+  const headerRight = document.querySelector('.header-right');
+  const weekLabelPrint = document.getElementById('weekLabelPrint');
+
+  nav.style.display = 'none';
+  headerRight.style.display = 'none';
+  weekLabelPrint.style.display = 'block';
+
+  const opt = {
+    margin: [10, 10, 10, 10],
+    filename: filename,
+    image: { type: 'jpeg', quality: 0.98 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  };
+
+  html2pdf().set(opt).from(document.getElementById('printArea')).save().then(() => {
+    nav.style.display = '';
+    headerRight.style.display = '';
+    weekLabelPrint.style.display = 'none';
+    showToast('PDF downloaded!');
+  });
+}
+
 function shiftWeek(dir) {
-  if (dir === 0) weekOffset = 0;
-  else weekOffset += dir;
+  if (dir===0) weekOffset=0;
+  else weekOffset+=dir;
   render();
 }
 
+/* ── Init ── */
+loadFromStorage();
 render();
+
+const lbl = document.getElementById('saveLabel');
+if (Object.keys(data).length > 0) {
+  document.getElementById('saveDot').className = 'save-dot saved';
+  lbl.textContent = 'auto-saved';
+} else {
+  lbl.textContent = 'no data yet';
+}
 </script>
 </body>
 </html>
